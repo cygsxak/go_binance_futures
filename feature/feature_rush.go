@@ -125,20 +125,9 @@ func tryBuyMarket(coin models.NewSymbols, stepSize string) (res *futures.CreateO
 			// 市价
 			res, err = binance.BuyMarket(symbol, quantity, futures.PositionSideTypeLong)
 		}
-	} else if coin.Side == "sell" {
-		if coin.ExpectPrice != "0" {
-			// 挂单价格
-			res, err = binance.SellLimit(symbol, quantity, buyPrice, futures.PositionSideTypeShort)
-		} else {
-			// 市价
-			res, err = binance.SellMarket(symbol, quantity, futures.PositionSideTypeShort)
-		}
 	}
 	
 	positionSide := "long"
-	if coin.Side == "sell" {
-		positionSide = "short"
-	}
 	if err != nil {
 		logs.Info("rush error symbol: ", symbol)
 		logs.Info("err in feature_rush: ", err.Error())

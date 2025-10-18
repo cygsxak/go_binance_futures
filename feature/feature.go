@@ -167,40 +167,6 @@ func StartTrade(systemConfig models.Config) {
 					})
 				}
 			}
-			if position.Side == "SHORT" {
-				order, err := binance.BuyMarket(position.Symbol, positionAmtFloatAbs, futures.PositionSideTypeShort)
-				if err == nil {
-					// 数据库写入订单
-					insertCloseOrder(position, positionAmtFloatAbs, unRealizedProfit, position.MarkPrice, order.OrderID, systemConfig)
-					
-					markPrice, _ := strconv.ParseFloat(position.MarkPrice, 64)
-					pusher.SetModuleName("futures").FuturesCloseOrder(notify.FuturesOrderParams{
-						Title: lang.Lang("futures.close_notice_title"),
-						Symbol: position.Symbol,
-						Side: "buy",
-						PositionSide: "short",
-						Price: markPrice,
-						Quantity: positionAmtFloat,
-						Leverage: leverage_float64,
-						Profit: unRealizedProfit,
-						Remarks: lang.Lang("futures.wind_of_change"),
-						Status: "success",
-					})
-				} else {
-					pusher.SetModuleName("futures").FuturesCloseOrder(notify.FuturesOrderParams{
-						Title: lang.Lang("futures.close_notice_title"),
-						Symbol: position.Symbol,
-						Side: "buy",
-						PositionSide: "short",
-						Quantity: positionAmtFloat,
-						Leverage: leverage_float64,
-						Profit: unRealizedProfit,
-						Remarks: lang.Lang("futures.wind_of_change"),
-						Status: "fail",
-						Error: err.Error(),
-					})
-				}
-			}
 			logs.Info("%s:auto_stop_end", position.Symbol)
 			continue
 		}
@@ -237,40 +203,6 @@ func StartTrade(systemConfig models.Config) {
 							Symbol: position.Symbol,
 							Side: "sell",
 							PositionSide: "long",
-							Quantity: positionAmtFloat,
-							Leverage: leverage_float64,
-							Profit: unRealizedProfit,
-							Remarks: lang.Lang("futures.stop_loss"),
-							Status: "fail",
-							Error: err.Error(),
-						})
-					}
-				}
-				if position.Side == "SHORT" {
-					order, err := binance.BuyMarket(position.Symbol, positionAmtFloatAbs, futures.PositionSideTypeShort)
-					if err == nil {
-						// 数据库写入订单
-						insertCloseOrder(position, positionAmtFloatAbs, unRealizedProfit, position.MarkPrice, order.OrderID, systemConfig)
-						
-						markPrice, _ := strconv.ParseFloat(position.MarkPrice, 64)
-						pusher.SetModuleName("futures").FuturesCloseOrder(notify.FuturesOrderParams{
-							Title: lang.Lang("futures.close_notice_title"),
-							Symbol: position.Symbol,
-							Side: "buy",
-							PositionSide: "short",
-							Price: markPrice,
-							Quantity: positionAmtFloat,
-							Leverage: leverage_float64,
-							Profit: unRealizedProfit,
-							Remarks: lang.Lang("futures.stop_loss"),
-							Status: "success",
-						})
-					} else {
-						pusher.SetModuleName("futures").FuturesCloseOrder(notify.FuturesOrderParams{
-							Title: lang.Lang("futures.close_notice_title"),
-							Symbol: position.Symbol,
-							Side: "buy",
-							PositionSide: "short",
 							Quantity: positionAmtFloat,
 							Leverage: leverage_float64,
 							Profit: unRealizedProfit,
@@ -324,40 +256,6 @@ func StartTrade(systemConfig models.Config) {
 						})
 					}
 				}
-				if position.Side == "SHORT" {
-					order, err := binance.BuyMarket(position.Symbol, positionAmtFloatAbs, futures.PositionSideTypeShort)
-					if err == nil {
-						// 数据库写入订单
-						insertCloseOrder(position, positionAmtFloatAbs, unRealizedProfit, position.MarkPrice, order.OrderID, systemConfig)
-						
-						markPrice, _ := strconv.ParseFloat(position.MarkPrice, 64)
-						pusher.SetModuleName("futures").FuturesCloseOrder(notify.FuturesOrderParams{
-							Title: lang.Lang("futures.close_notice_title"),
-							Symbol: position.Symbol,
-							Side: "buy",
-							PositionSide: "short",
-							Price: markPrice,
-							Quantity: positionAmtFloat,
-							Leverage: leverage_float64,
-							Profit: unRealizedProfit,
-							Remarks: lang.Lang("futures.target_profit"),
-							Status: "success",
-						})
-					} else {
-						pusher.SetModuleName("futures").FuturesCloseOrder(notify.FuturesOrderParams{
-							Title: lang.Lang("futures.close_notice_title"),
-							Symbol: position.Symbol,
-							Side: "buy",
-							PositionSide: "short",
-							Quantity: positionAmtFloat,
-							Leverage: leverage_float64,
-							Profit: unRealizedProfit,
-							Remarks: lang.Lang("futures.target_profit"),
-							Status: "fail",
-							Error: err.Error(),
-						})
-					}
-				}
 				continue
 			}
 		}
@@ -379,8 +277,8 @@ func StartTrade(systemConfig models.Config) {
 		return
 	}
 	
-	if systemConfig.FutureAllowLong != 1 && systemConfig.FutureAllowShort != 1 {
-		logs.Info("the base config don't allow long and allow short")
+	if systemConfig.FutureAllowLong != 1 {
+		logs.Info("the base config don't allow long")
 		return
 	}
 	/*************************************************检查当前仓位数量  end************************************************************ */
@@ -394,7 +292,6 @@ func StartTrade(systemConfig models.Config) {
 			continue
 		}
 		positionSideLong := "LONG"
-      	positionSideShort := "SHORT"
 		symbol := coin.Symbol
 		tickSize := coin.TickSize // 交易金额精度
 		stepSize := coin.StepSize // 交易数量精度
@@ -408,25 +305,18 @@ func StartTrade(systemConfig models.Config) {
 		openResult := coin_line_strategy.GetCanLongOrShort(strategy.OpenParams{
 			Symbols: coin,
 		})
-		if !openResult.CanLong && !openResult.CanShort {
-			logs.Info("%s:no trading strategy conditions passed", symbol)
+		if !openResult.CanLong {
+			logs.Info("%s:no trading strategy conditions passed for long", symbol)
 			continue
 		}
 		hasBuyOrderLong := false // 此币种开多的单
-		hasBuyOrderShort := false // 此币种开空的单
 		for _, item := range allOpenOrders {
 			if item.Symbol == symbol && item.Side == "BUY" && item.PositionSide == "LONG" {
 				hasBuyOrderLong = true
-			}
-			if item.Symbol == symbol && item.Side == "SELL" && item.PositionSide == "SHORT" {
-				hasBuyOrderShort = true
-			}
-			if hasBuyOrderLong && hasBuyOrderShort {
 				break
 			}
 		}
 		hasPositionLong := false // 此币种的多仓
-		hasPositionShort := false // 此币种的空仓
 		for _, item := range positions {
 			positionAmtFloat, _ := strconv.ParseFloat(item.Amount, 64)
 			positionAmtFloatAbs := math.Abs(positionAmtFloat) // 空单为负数,纠正为绝对值
@@ -435,11 +325,6 @@ func StartTrade(systemConfig models.Config) {
 			}
 			if item.Symbol == symbol && item.Side == positionSideLong {
 				hasPositionLong = true
-			}
-			if item.Symbol == symbol && item.Side == positionSideShort {
-				hasPositionShort = true
-			}
-			if hasPositionLong && hasPositionShort {
 				break
 			}
 		}
@@ -504,77 +389,6 @@ func StartTrade(systemConfig models.Config) {
 							Side: "buy",
 							PositionSide: "long",
 							Price: buyPrice,
-							Quantity: quantity,
-							Leverage: leverage_float64,
-							Status: "fail",
-							Error: err.Error(),
-						})
-					}
-				}
-				isOpen = true
-			}
-		}
-		if systemConfig.FutureAllowShort == 1 && hasPositionShort == false && hasPositionShort == false && openResult.CanShort {
-			
-			_, sellPrice, err := binance.GetDepthAvgPrice(symbol, 5) // 平均卖价
-			if err == nil {
-				sellPrice = utils.GetTradePrecision(sellPrice, tickSize) // 合理精度的价格
-				quantity := (usdt_float64 / sellPrice) * leverage_float64  // 购买数量
-				quantity = utils.GetTradePrecision(quantity, stepSize) // 合理精度的价格
-				
-				UpdateSymbolTradeInfo(coin) // 更新倍率和仓位模式
-				
-				if systemConfig.FutureOrderType == "MARKET" {
-					order, err := binance.SellMarket(symbol, quantity, futures.PositionSideTypeShort)
-					if err == nil {
-						// 数据库写入订单
-						sellPrice := utils.GetTradePrecision(sellPrice * 0.9988, coin.TickSize) // 价格下调 0.12%(原因是市价买入通常会比当前价格高)
-						insertOpenOrder(symbol, quantity, strconv.FormatFloat(sellPrice, 'f', -1, 64), "SHORT", int64(leverage_float64), order.OrderID)
-						pusher.SetModuleName("futures").FuturesOpenOrder(notify.FuturesOrderParams{
-							Title: lang.Lang("futures.open_notice_title"),
-							Symbol: symbol,
-							Side: "sell",
-							PositionSide: "short",
-							Price: sellPrice,
-							Quantity: quantity,
-							Leverage: leverage_float64,
-							Status: "success",
-						})
-					} else {
-						pusher.SetModuleName("futures").FuturesOpenOrder(notify.FuturesOrderParams{
-							Title: lang.Lang("futures.open_notice_title"),
-							Symbol: symbol,
-							Side: "sell",
-							PositionSide: "short",
-							Price: sellPrice,
-							Quantity: quantity,
-							Leverage: leverage_float64,
-							Status: "fail",
-							Error: err.Error(),
-						})
-					}
-				} else {
-					order, err := binance.SellLimit(symbol, quantity, sellPrice, futures.PositionSideTypeShort)
-					if err == nil {
-						// 数据库写入订单(可能没有买入)
-						insertOpenOrder(symbol, quantity, strconv.FormatFloat(sellPrice, 'f', -1, 64), "SHORT", int64(leverage_float64), order.OrderID)
-						pusher.SetModuleName("futures").FuturesOpenOrder(notify.FuturesOrderParams{
-							Title: lang.Lang("futures.open_notice_title"),
-							Symbol: symbol,
-							Side: "sell",
-							PositionSide: "short",
-							Price: sellPrice,
-							Quantity: quantity,
-							Leverage: leverage_float64,
-							Status: "success",
-						})
-					} else {
-						pusher.SetModuleName("futures").FuturesOpenOrder(notify.FuturesOrderParams{
-							Title: lang.Lang("futures.open_notice_title"),
-							Symbol: symbol,
-							Side: "sell",
-							PositionSide: "short",
-							Price: sellPrice,
 							Quantity: quantity,
 							Leverage: leverage_float64,
 							Status: "fail",

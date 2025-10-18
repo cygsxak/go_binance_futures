@@ -131,45 +131,6 @@ func NoticeAndAutoOrder(systemConfig models.Config) {
 						binance.OrderStopLoss(coin.Symbol, loss_price_float64, futures.SideTypeSell, futures.PositionSideTypeLong)
 					}
 				}
-			} else if coin.Side == "sell" {
-				_, err := binance.SellMarket(coin.Symbol, quantity, futures.PositionSideTypeShort)
-				if err != nil {
-					logs.Info("合约做空失败symbol:", coin.Symbol)
-					pusher.SetModuleName("coin_notice").FuturesOpenOrder(notify.FuturesOrderParams{
-						Title: lang.Lang("futures.open_notice_title"),
-						Symbol: coin.Symbol,
-						Side: "sell",
-						PositionSide: "short",
-						Price: nowPrice,
-						Quantity: quantity,
-						Leverage: leverage_float64,
-						Status: "fail",
-						Error: err.Error(),
-					})
-				} else {
-					pusher.SetModuleName("coin_notice").FuturesOpenOrder(notify.FuturesOrderParams{
-						Title: lang.Lang("futures.open_notice_title"),
-						Symbol: coin.Symbol,
-						Side: "sell",
-						PositionSide: "short",
-						Price: nowPrice,
-						Quantity: quantity,
-						Leverage: leverage_float64,
-						Status: "success",
-					})
-					if (coin.ProfitPrice != "0") {
-						// 挂一个止盈单
-						profit_price_float64, _ := strconv.ParseFloat(coin.ProfitPrice, 64) // 交易金额
-						profit_price_float64 = utils.GetTradePrecision(profit_price_float64, coin.TickSize) // 合理精度价格
-						binance.OrderTakeProfit(coin.Symbol, profit_price_float64, futures.SideTypeBuy, futures.PositionSideTypeShort)
-					}
-					if (coin.LossPrice != "0") {
-						// 挂一个止损单
-						loss_price_float64, _ := strconv.ParseFloat(coin.LossPrice, 64) // 交易金额
-						loss_price_float64 = utils.GetTradePrecision(loss_price_float64, coin.TickSize) // 合理精度价格
-						binance.OrderStopLoss(coin.Symbol, loss_price_float64, futures.SideTypeBuy, futures.PositionSideTypeShort)
-					}
-				}
 			}
 		}
 	}

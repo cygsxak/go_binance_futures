@@ -97,7 +97,7 @@ func NoticeAllSymbolByStrategy(systemConfig models.Config) {
 		logs.Info("futures custom strategy test, symbol: ", coin.Symbol)
 		env := line.InitParseEnv(coin.Symbol, coin.Technology)
 		for _, strategy := range strategyConfig {
-			if strategy.Enable && (strategy.Type == "long" || strategy.Type == "short") {
+			if strategy.Enable && strategy.Type == "long" {
 				program, err := expr.Compile(strategy.Code, expr.Env(env))
 				if err != nil {
 					logs.Error("Error Strategy Compile Symbol: ", coin.Symbol)
@@ -114,8 +114,6 @@ func NoticeAllSymbolByStrategy(systemConfig models.Config) {
 					floatNowPrice, ok := env["NowPrice"].(float64)
 					if strategy.Type == "long" {
 						floatNowPrice = utils.GetTradePrecision(floatNowPrice * 1.001, coin.TickSize) // 价格上浮 0.1%(原因是市价买入通常会比当前价格高)
-					} else if strategy.Type == "short" {
-						floatNowPrice = utils.GetTradePrecision(floatNowPrice * 0.999, coin.TickSize) // 价格下浮 0.1%(原因是市价卖出通常会比当前价格低)
 					}
 					if !ok {
 						logs.Error("Error NowPrice Symbol: ", coin.Symbol)
@@ -239,13 +237,9 @@ func CheckTestResults(systemConfig models.Config) {
 		}
 			
 		for _, strategy := range strategyConfig {
-			if strategy.Enable && (strategy.Type == "close_long" || strategy.Type == "close_short") {
+			if strategy.Enable && strategy.Type == "close_long" {
 				if strategy.Type == "close_long" && result.PositionSide != "LONG" {
 					// 平多仓的策略，当前仓位不是多仓，跳过
-					continue
-				}
-				if strategy.Type == "close_short" && result.PositionSide != "SHORT" {
-					// 平空仓的策略，当前仓位不是空仓，跳过
 					continue
 				}
 				
@@ -334,10 +328,7 @@ func createTestResult(coin *models.Symbols, nowPrice float64, positionSide strin
 	buyPrice := utils.GetTradePrecision(nowPrice, coin.TickSize) // 合理精度的价格
 	quantity := (usdt_float64 / buyPrice) * float64(coin.Leverage) // 购买数量
 	quantity = utils.GetTradePrecision(quantity, coin.StepSize) // 合理精度的数量
-	if positionSide == "SHORT" {
-		quantity = -quantity // 空单
-	}
-				
+			
 	result = new(models.TestStrategyResults)
 	result.Symbol = coin.Symbol
 	result.Price = strconv.FormatFloat(buyPrice, 'f', -1, 64)

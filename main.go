@@ -7,10 +7,7 @@ import (
 	"go_binance_futures/feature/api/binance"
 	"go_binance_futures/middlewares"
 	"go_binance_futures/models"
-	"go_binance_futures/rate"
 	_ "go_binance_futures/routers"
-	"go_binance_futures/spot"
-	spot_api "go_binance_futures/spot/api/binance"
 	"go_binance_futures/utils"
 	"time"
 
@@ -77,7 +74,6 @@ func registerModels() {
 	orm.RegisterModel(new(models.EatRateSymbols))
 	orm.RegisterModel(new(models.StrategyTemplates))
 	orm.RegisterModel(new(models.TestStrategyResults))
-	orm.RegisterModel(new(models.SpotSymbols))
 	orm.RegisterModel(new(models.DeliverySymbols))
 	orm.RegisterModel(new(models.FuturesPosition))
 	orm.RegisterModel(new(models.FuturesOrder))
@@ -137,7 +133,6 @@ func main() {
 		updateSystemConfig()
 		// feature.UpdateOrderStatus()
 		// feature.GoTestApi()
-		// spot.TryRush()
 		// feature.GoTestFeature()
 		// feature.UpdateSymbolsFundingRates()
 		// feature.ListenCoinFundingRate()
@@ -185,7 +180,6 @@ func main() {
 		for {
 			logs.Info("update symbols trade precision and add new symbols, every 12 hours")
 			feature.UpdateSymbolsTradePrecision() // u本位
-			// spot.UpdateSymbolsTradePrecision() // 现货
 			// feature.UpdateDeliverySymbolsTradePrecision() // 币本位
 			time.Sleep(12 * time.Hour) // 12小时更新一次
 		}
@@ -195,11 +189,6 @@ func main() {
 	go func() {
 		logs.Info("futures websocket start: auto update symbols price")
 		binance.UpdateCoinByWs(&SystemConfig, 0)
-	}()
-	go func() {
-		return
-		logs.Info("spot websocket start: auto update symbols price")
-		spot_api.UpdateCoinByWs(&SystemConfig, 0)
 	}()
 	go func() {
 		return
@@ -251,14 +240,6 @@ func main() {
 	}()
 	/*******************************************测试自定义策略 end**********************************************************/
 	
-	// 新币抢购
-	go func() {
-		for {
-			spot.TryRush(SystemConfig)
-			time.Sleep(time.Millisecond * 100) // 0.1 秒间隔
-		}
-	}()
-	
 	// 新币合约抢购
 	go func() {
 		for {
@@ -270,7 +251,6 @@ func main() {
 	// 币种通知
 	go func() {
 		for {
-			spot.NoticeAndAutoOrder(SystemConfig)
 			feature.NoticeAndAutoOrder(SystemConfig)
 
 			time.Sleep(time.Second * 2) // 2 秒间隔
@@ -280,7 +260,6 @@ func main() {
 	// 行情监听
 	go func() {
 		for {
-			spot.ListenCoin(SystemConfig)
 			feature.ListenCoin(SystemConfig)
 
 			time.Sleep(time.Second * 2) // 3 秒间隔
@@ -297,15 +276,6 @@ func main() {
 
 			time.Sleep(time.Second * 90) // 90 秒更新一次
 		}
-	}()
-	
-	// 监听套利情况
-	go func() {
-		return
-		for {
-			rate.ListenRateEat()
-			time.Sleep(time.Hour * 1) // 1 小时更新一次
-		}	
 	}()
 	
 	// web
